@@ -178,3 +178,36 @@ mito_to_haplo_igraph <- function(metadata, dnafile, haplonet) {
   #return the graph dataframe
   return(igdf)
 }
+
+
+makemitomap <- function(mitonet, mitogrups, haps) {
+  ##########################
+  #Create map of sample:haplotype for mitochondria
+  #add mitochondrial group as as a vertex attribute
+  V(mitonet)$mitogroup <- membership(mitogrups)
+  mitoigdf <- igraph::as_data_frame(mitonet, "both")
+  map <- as.data.frame(getindhap(h)) %>% filter(Freq > 0)
+  mitomap<-mitoigdf$vertices %>%
+    left_join(., map, by = c("name" = "hap")) %>% 
+    select(pop, name, mitogroup) %>% 
+    left_join(., metadata, by = c('pop' = "sample_id")) %>% 
+    select(pop, name, mitogroup)
+  colnames(mitomap) <- c("sample_id", "hap", "mitogroup")
+  return(mitomap)
+}
+
+makesibmap <- function(sibnet, mitomap, fsibgrups) {
+  ##########################
+  #convert sib netrwortk into dataframe with community membership as a vertex attribute
+  #add membership as vertex attribute and make dataframe of sample id and cluster membership
+  V(sibnet)$community <- membership(fsibgrups)
+  mem<- igraph::as_data_frame(sibnet, "both") 
+  #create map of f-sib group membership
+  #extract vertices and their community characteristics
+  fsibmap <- mem$vertices %>% 
+    left_join(mitomap, by = c("name" = "sample_id")) %>% 
+    select(name, community, newsampleid)
+  colnames(fsibmap) <- c("sample_id", "fsibgroup", "newsampleid")
+  return(fsibmap)
+}
+

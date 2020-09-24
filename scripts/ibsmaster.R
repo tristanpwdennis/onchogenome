@@ -134,34 +134,16 @@ plot(mitogrups, mitonet)
 #plot fullsib clustering
 plot(fsibgrups, sibnet)
 
-##########################
-#Create map of sample:haplotype for mitochondria
-#add mitochondrial group as as a vertex attribute
-V(mitonet)$mitogroup <- membership(mitogrups)
-mitoigdf <- igraph::as_data_frame(mitonet, "both")
-map <- as.data.frame(getindhap(h)) %>% filter(Freq > 0)
-mitomap<-mitoigdf$vertices %>%
-  left_join(., map, by = c("name" = "hap")) %>% 
-  select(pop, name, mitogroup) %>% 
-  left_join(., metadata, by = c('pop' = "sample_id")) %>% 
-  select(pop, name, mitogroup)
 
 ##########################
-#convert sib netrwortk into dataframe with community membership as a vertex attribute
-#add membership as vertex attribute and make dataframe of sample id and cluster membership
-V(sibnet)$community <- membership(fsibgrups)
-mem<- igraph::as_data_frame(sibnet, "both") 
-#create map of f-sib group membership
-#extract vertices and their community characteristics
-fsibmap <- mem$vertices %>% 
-  left_join(mitomap, by = c("name" = "pop")) %>% 
-  select(name, community, newsampleid)
+#make mito map
+mitomap<-makemitomap(mitonet, mitogrups, h)
 
 ##########################
-#Create map of sample:haplotype for relatedness/sib
+#make mapping of sample to fullsib and mito group
+fsibmap<-makesibmap(sibnet, mitomap, fsibgrups)
 
-colnames(mitomap) <- c("sample_id", "hap", "mitogroup")
-colnames(fsibmap) <- c("sample_id", "fsibgroup", "newsampleid")
+
 
 
 ####now we totally mangle the relatedness dataframe
@@ -182,16 +164,19 @@ mitosibedge <- rel %>%
   filter(., mitosib == 'mitosib') %>% 
   filter(fsibgroup.x != fsibgroup.y)
 
-#create vetices from membership dataframe
+#create vertices from membership dataframe
 mitosibvertex <- fsibmap %>% 
   select(fsibgroup, newsampleid) %>% distinct()
 
 #create graph object, fill by palette we created above, with corresponding legend
 msibgraph  <- graph_from_data_frame(mitosibedge, mitosibvertex, directed = F)
-{plot(msibgraph, vertex.color=vertex.col,)
+
+mitopal <- make_ig_color_pals_from_samples(mitosibvertex, "Set1")
+
+{plot(msibgraph, vertex.label.cex = .7,  vertex.size=30, vertex.color=mitopal[[3]]) 
   legend("topleft",bty = "n",
-         legend=levels(colgroups),
-         fill=pal, border=NA)}
+         legend=levels(mitopal[[2]]),
+         fill=mitopal[[1]], border=NA)}
 
 #convert this back to a dataframe for counting GTs
 mitodf <- igraph::as_data_frame(msibgraph, "both")
