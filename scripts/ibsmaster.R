@@ -125,47 +125,44 @@ mitopal <- make_ig_color_pals_from_samples(ig$vertices, "Set1")
          legend=levels(mitopal[[2]]),
          fill=mitopal[[1]], border=NA)}
 
-################
-#define sib and mitogroup clusters using simple greedy clustering algorithm (is fine as all our edges are based on discrete characteristics)
-#and I have enforced them - this is just a way of cluster as an attribute that I can map back to the samples
-#
+#simple clustering of sibling network based on FS connectivity
 fsibgrups<-fastgreedy.community(sibnet)
 mitogrups<-fastgreedy.community(mitonet)
+
 #plot mitochondrial clustering
 plot(mitogrups, mitonet)
 #plot fullsib clustering
 plot(fsibgrups, sibnet)
 
+##########################
+#Create map of sample:haplotype for mitochondria
+#add mitochondrial group as as a vertex attribute
+V(mitonet)$mitogroup <- membership(mitogrups)
+mitoigdf <- igraph::as_data_frame(mitonet, "both")
+map <- as.data.frame(getindhap(h)) %>% filter(Freq > 0)
+mitomap<-mitoigdf$vertices %>%
+  left_join(., map, by = c("name" = "hap")) %>% 
+  select(pop, name, mitogroup) %>% 
+  left_join(., metadata, by = c('pop' = "sample_id")) %>% 
+  select(pop, name, mitogroup)
 
-
+##########################
+#convert sib netrwortk into dataframe with community membership as a vertex attribute
 #add membership as vertex attribute and make dataframe of sample id and cluster membership
-V(sibnet)$community <- membership(grups)
-#add mitochondrial group as attribute
-V(pruned_g)$mitogroup <- membership(mitogrups)
-mitoigdf <- igraph::as_data_frame(pruned_g, "both")
-
-
-
-
-
-
-
-#now let's extract the vertices and add them to the individuals in map
-mitomap <- mitoigdf$vertices %>% 
-  left_join(., map, by =c("name" = "hap")) %>% 
-  select(sample_id, name, mitogroup) %>% 
-  left_join(., metadata, by = c('sample_id' = "sample_id")) %>%
-  select(sample_id, mitogroup)
-
-mem <- as.data.frame(cbind(as_ids(V(sibnet)),V(sibnet)$community))
-
-mem <- igraph::as_data_frame(sibnet, "both") 
-
-
-colnames(mem) <- c("sample_id", "fsibgroup")
-
+V(sibnet)$community <- membership(fsibgrups)
+mem<- igraph::as_data_frame(sibnet, "both") 
 #create map of f-sib group membership
-fsibmap <- mem %>% left_join(mitometa, by = c("sample_id" = "sample_id")) %>% select(sample_id, fsibgroup, newsampleid)
+#extract vertices and their community characteristics
+fsibmap <- mem$vertices %>% 
+  left_join(mitomap, by = c("name" = "pop")) %>% 
+  select(name, community, newsampleid)
+
+##########################
+#Create map of sample:haplotype for relatedness/sib
+
+colnames(mitomap) <- c("sample_id", "hap", "mitogroup")
+colnames(fsibmap) <- c("sample_id", "fsibgroup", "newsampleid")
+
 
 ####now we totally mangle the relatedness dataframe
 ####this is a bit of a beast
