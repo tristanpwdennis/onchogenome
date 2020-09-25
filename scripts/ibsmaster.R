@@ -180,12 +180,13 @@ mitopal <- make_ig_color_pals_from_samples(mitosibvertex, "Set1")
 
 #convert this back to a dataframe for counting GTs
 mitodf <- igraph::as_data_frame(msibgraph, "both")
-#calculate unique genotypes-
-#This is the number of vertices (unique adult genotypes)*2, minus the number of mitochondrial links
 
+#calculate unique adult genotypes-
+#This is the number of vertices (unique adult genotypes)*2, minus the number of mitochondrial links
 count(mitodf$vertices)*2 - count(mitodf$edges)
 
-
+#Number of unique female genotypes - one for every f-sib cluster minus one for every shared mitochondrial haplotype
+count(mitodf$vertices) - count(mitodf$edges)
 
 
 

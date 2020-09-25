@@ -14,315 +14,44 @@ library(RColorBrewer)
 library(tidyverse)
 ```
 
-```{r loaddata, include = FALSE}
+
+```{r}
+################
+#load all our shit
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 #mitochondrial genome fasta of all samples
-input <- c('~/Projects/DNDI/Data/mitochondrial/unamplified_amplified_mf_and_males/fasta/unamplified_amplified_mf_and_males.fas')
-#sequencing metadata
-metadata <- read.csv('/Users/tristanpwdennis/Projects/DNDI/Metadata-dev/foranalysis/metadata-all.csv')
+input <- c('/Users/tristanpwdennis/Projects/onchogenome/data')
 #ibsrelate output
 testpath0 = '/Users/tristanpwdennis/Software/onchotoolbox/data/ibs.model0.results.ibspair'
 #source file with ibs functions
 source("ibsfunctions.R")
-```
-The samples were sourced from 4 villages in the Ashanti region of Southwestern Ghana by Kwame Nkrumah University of Science and Technology (special thanks to Prof. Alex Debrah and Dr. Linda Batsa) as part of the AWOL Consortium, in 2009, and were shipped to us by University Hospital Bonn (thank you especially to Dr. Ken Pfarr and Bettina Dubben). The laboratory work (dissection, DNA extraction and sequencing library prep) was performed by Dr William Sands, Jacob Thompson and Millicent Opoku. I (Tristan Dennis) performed all of the analysis. Dr Poppy Lamberton and Dr Lisa Ranford-Cartwright supervised the work. Dr Christina Faust, Dr Kathryn Crouch, Dr Arne Jacobs and Dr Steve Doyle provided helpful feedback, discussions and advice. Finally, I would like to thank our contacts in the Drugs for Neglected Diseases Initiative, Dr Sabine Specht, and Dr Ivan Scandale for facilitating the work, as well as project co-I's Prof. Eileen Devaney and Prof. Mike Barrett.
-
-We have attempted to sequence 92 samples, of which 61 were intrauterine mf from 4 adult females, 41 mf were subjected to whole-genome-amplification. This didn't work and we ended up sequencing repeatedly a very small portion of the genome. I can provide a breakdown of these results on request. The remaining 20 mf were sequenced, without amplification. Furthermore, we sequenced 29 adult males and 2 adult females. Genotype likelihoods were calculated from the aligned reads using ANGSD, and used as input for the IBSRelate software.
-
-Some terms here that I use. 'Brood' refers to a group of offspring from the same mother. In this case, mf that were dissected from a single female's uterus comprise a brood.
-
-I've loaded: sequencing metadata and the output of IBSRelate. See a subsample:
-```{r metahead}
-kable(metadata %>% select(sample_id,patient_ID, nodule_id, worm_type) %>% head())
-```
-```{r doibs, include = FALSE}
-########
-#Now let's load in the ibs information, run the functions on them, and join info for each pair
-########
-#load model0 ibs
-testpath0 = '/Users/tristanpwdennis/Software/onchotoolbox/data/ibs.model0.results.ibspair'
-#calculate ibs with above funcs
-rel = do_derived_stats(read_ibspair_model0(testpath0))
-#add metadata to each 'side' of the paired data on key = sample number (bamlist order)
-rel <- left_join(rel, metadata, by = c('ind1' = 'sample_num')) %>% left_join(., metadata, by = c('ind2' = 'sample_num'))
-```
-Behind the scenes there, I created a dataframe containing IBS calculations for pairs of all our individual samples in the unamplified mf and males. The dataframe also contains metadata for each sample in the pair. In order to analyse the data, I need to define some characteristics of each of the pairwise comparisons (calculations of kinship for each pair of individuals). First, what 'type' each worm in a pair is, then, whether a calculation is being made between individuals of the same or different broods and  patients.
-
-```{r do comparisons}
-#Here, I define what each pair represents: a caculation between mf, or between mf and a male, or an mf and a female
-rel$typecomp <- paste0(rel$worm_type.x, "_",rel$worm_type.y)
-#here, I create variables specifying whether members of a pair
-rel <- rel %>% mutate(degree_bro = ifelse(newsampleid.x == newsampleid.y, 'withinbrood', 'betweenbrood')) %>% 
-  mutate(degree_pat = ifelse(patient_ID.x == patient_ID.y, 'within_patient', 'between_patient')) 
-#filter out non-mf comparisons for now
-rel <- rel %>% filter(., typecomp == 'mf_mf')
-#get the fraction of the total GL's involved in the comparison
-rel$fracsites <- rel$nSites / 884673
+#source file that generates metadata
+source("metadata.R")
+###
+source("~/Projects/onchogenome/scripts/ibslib.R")
 ```
 
-```{r r0r1, echo = FALSE}
-#plot R1/R0
-filter(rel, fracsites > 0.5) %>% 
-  ggplot(., aes(x=R1, y=R0, colour = degree_bro)) +
-  geom_point() +
-  theme_minimal(base_size = 22)
-```
-
-**Figure 1: R1/R0 scatterplot for 10 intrauterine microfilaria. Each point represents a pair of individuals and is coloured according to whether the individuals in the pair are dissected from the same, or different, adult females**
-```{r r1kinplot, echo = FALSE}
-#plot R1/King ROBUST KINSHIP
-filter(rel, fracsites > 0.5) %>% 
-  ggplot(., aes(x=R1, y=Kin, colour = degree_bro)) +
-  geom_point() +
-  theme_minimal(base_size = 22)
-```
-
-**Figure 2: R1/R0 scatterplot for 10 intrauterine microfilaria. Each point represents a pair of individuals and is coloured according to whether the individuals in the pair are dissected from the same, or different, adult females**
-
-Looking at the plots, two discrete groups are apparent: the lower group (R0 > 0.5) and the upper group (R0 < 0.5). Although the exact IBS values expected for different relationships differ by organism and population, the lower group corresponds to what we expect to see for 'FSs' based on **Waples *et al*, 2018**. The upper group is more difficult, as there is a contiguous range of R0/R1/Kin values that correspond to HS and first-cousin. According to the grouping of **Waples *et al*, 2018** (Fig 3), I have set a cutoff of R0 < 0.25 for HS. Based on these groupings, we create a new row in our relatedness dataframe that corresponds to 'found relationship`:
-
-```{r definerel}
-rel <- rel %>% mutate(.,
-       relationship = case_when(
-         R0 < 0.2 & R1 < 0.5 ~ 'h-sib',
-         R1 > 0.5  ~ 'f-sib',
-         TRUE ~ NA_character_)
-       ) 
-```
-
-Now I plot the results so you can see more clearly the groupings I've defined
-
-```{r updplot, echo = FALSE}
-rel %>% filter(., fracsites > 0.8) %>% 
-  ggplot(aes(x=R1, y = R0, colour = relationship)) +
-  geom_point()
-```
-
-**Figure 3: R1/R0 scatterplot for 10 intrauterine microfilaria. Each point represents a pair of individuals and is coloured according to the inferred relationship**
-
-Now, let's plot the relationships I've inferred using the fantastic `iGraph` library. There's a bit of code under the hood here for extracting the relatedness and sample info, generating edges and vertices from them, applying attributes and creating the final iGraph object.
-
-```{r makeig, echo = FALSE}
-edges <- rel %>% 
-  filter(fracsites > 0.7) %>% 
-  select(sample_id.x, sample_id.y, relationship) %>% 
-  drop_na()
-#create node (igraph calls these vertices) attrribute dataframe (selecting metadata rows that are in the relatedness frame)
-nodes <- metadata %>% select(., sample_id, patient_ID, newsampleid) %>%
-  filter(sample_id %in% edges$sample_id.x | sample_id %in% edges$sample_id.y) 
-#define group colours
-colgroups <- as.factor(nodes$newsampleid)
-#create palette with as many colours as factor levels (samples)
-n<-nlevels(colgroups)
-pal <- brewer.pal(n,"Accent")
-#make factor (sample): colour mapping
-vertex.col <- pal[colgroups]
-net <- graph_from_data_frame(edges, nodes, directed = F)
-#colour edges by inferred relationship
-E(net)$color <- as.factor(E(net)$relationship)
-#plot network
-{plot(net, vertex.label.cex = .7,  vertex.size=30, vertex.color=vertex.col) 
-legend("topleft",bty = "n",
-       legend=levels(colgroups),
-       fill=pal, border=NA)}
-```
-
-**Figure 4: Undirected graph indicating inferred relationships between 10 intrauterine microfilaria. Node label indicates sample name. Node colour indicates worm brood (detailed in legend) (the dam from which it was dissected). Edge colour indicates inferred relationship, where yellow = FS and blue = HS** 
-
-Unsurprisingly, we have a mess. The FS clusters are very clear: clustering by yellow lines. However, the HS values are all over the place and complicate things somewhat. We have 10 mf from 3 broods (adult female uteruses). They group into full-sub clusters by brood (e.g. all the individuals from *III* - the gold brood - are FS with respect to once another. Likewise with *63G* - the green brood. *61G* is interesting as it has 3 individuals from the same brood, two of which are FS with respect to each other, with one half-sib. This indicates that we have 1 dam fertilised by two sires).
-
-There's a bit of noise and inconsistency among the HS assignments too:. I think there's a difficulty drawing distinctions between HSs and cousins, so let's drop the HSs for now, and discuss below.
-
-```{r simplenet}
-edgesub <- edges %>% filter(relationship == 'f-sib')
-net <- graph_from_data_frame(edgesub, nodes, directed = F)
-E(net)$color <- as.factor(E(net)$relationship)
-{plot.igraph(net, vertex.color=vertex.col, vertex.label.cex = .7,vertex.size=30) 
-legend("topleft",bty = "n",
-       legend=levels(colgroups),
-       fill=pal, border=NA)}
-```
-
-**Figure 5: Undirected graph indicating FS relationships (edge colour-orange) amongst 10 intrauterine microfilaria (node label) isolated from three different adult females (node colour).**
-
-This is tidier. We can see clearly FSib clusters coloured by our prior. However, this throws a spanner in the works. We cannot infer the number of unique adult genotypes from FS clustering alone - we need to know which individuals may share a mother or a father. As we saw above, our HS assignment is all over the place. I can work out half-siblinghood, however, by looking at mitochondrial genotype sharing between individuals. As mitochondria are inherited maternally, finding out mitochondrial genotype in our samples will tell us which individuals share a mother. By process of elimination, we can then infer the number of unique male and female genotypes from our offspring. It also happens that we get great coverage across the mtDNA in each individual, so this makes mtDNA genotyping quite straightforward in our sample set.
-
-```{r mtNetwork, echo = FALSE}
-input <- c('~/Projects/DNDI/Data/mitochondrial/unamplified_amplified_mf_and_males/fasta/unamplified_amplified_mf_and_males.fas')
-d <- read.dna(input, format = 'fasta')
-h <- pegas::haplotype(d)
-
-(hnet <- pegas::haploNet(h))
-ind.hap<-with(
-  stack(setNames(attr(h, "index"), rownames(h))),
-  table(hap=ind, pop=rownames(d)[values])
-)
-plot(hnet, size=attr(hnet, "freq"), scale.ratio=0.2, pie=ind.hap) 
-```
-
-**Figure 6: Haplotype network detailing major haplotype groupings of O. volvulus mf samples**
-
-This is very messy right now - I will tidy up. But we can see there are unambigous groups of mitochondrial haplotypes. We see some divergence within each major mitochondrial cluster but only on the order of 1-2 SNPs. Now, I will define mitochondrial groups by importing the network into iGraph and doing some clustering.
-
-```{r iclu, echo = FALSE}
-net.igraph <- pegas::as.igraph.haploNet(hnet,
-                                        directed = FALSE, #Leave network arrows off as they are not relevant to our case.
-                                        use.labels = TRUE,
-                                        altlinks = FALSE) #only get main links between haplotypes or you'll end up with tons of extra lines
-
-#So now we have an iGraph showing how connected our hapolotypes are to each other
-#remember we have a table of individual and haplotype membership
-#we need to derive information on: how many samples are a member of each group so we can size accordingly, as well as information on which brood samples are from a priori
-#the goal here is to derive mitochondrial groups for each sample
-#get membership and haplotype from table created above
-membship <- as.data.frame(ind.hap) %>% filter(Freq == 1)
-#define known broods
-metadata <- metadata %>% mutate(., knownbrood = case_when(worm_type == 'mf' ~ newsampleid,TRUE ~ 'unknown'))
-
-#create our map that contains haplotype information and sample information - to get per-sample haplotype info
-map <- distinct(metadata %>% select(sample_id, newsampleid, knownbrood, worm_type) %>% left_join(., membship, by = c('sample_id' = 'pop')) %>% drop_na())
-#convert graph structure to data frame
-igdf <- igraph::as_data_frame(net.igraph, "both")
-#derive distance matrix from haplotype object
-distmatrix <- as.matrix(dist.hamming(h))
-#longform distance matrix for pairs in BOTH DIRECTIONS (important you get both so that the igraph can be found)
-#turn matrix into longform pairs
-searchdf<-
-  data.frame(col=colnames(distmatrix)[col(distmatrix)], row=rownames(distmatrix)[row(distmatrix)], dist=c(distmatrix)) %>% 
-  #create an id for each pair (in both directions)
-  mutate(., pair = paste0(col, "_",row)) 
-#create pair ids from igraph df
-pairdf <- igdf$edges %>% mutate(., pair = paste0(from, "_",to)) 
-#subset dist df by columns IN DIRECTION OF igraph df to get igraph df + distances (which will be edge lengths)
-pairdf <- filter(searchdf, pair %in% pairdf$pair) %>% select(col, row, dist, pair)
-colnames(pairdf) <- c("from", "to", "dist", "pairid")
-#replace original edges with our edges plus attributes(including pairid for sanity checking)
-igdf$edges <- pairdf
-#create vertex df and add attributes from metadata
-igdf$vertices <- igdf$vertices %>% left_join(map, by = c("name" = "hap")) %>% select(name, knownbrood) %>% distinct()
-#Let's set a cutoff, based on the HaploNet plot, of 2 SNPs difference - to define our clustering
-igdf$edges <- igdf$edges %>% filter(dist < 3)
-#get only mf edges
-igdf$edges <- igdf$edges %>% 
-  left_join(., map, by = c("from" = "hap")) %>% 
-  left_join(., map, by = c("to" = "hap")) %>% 
-  select(from, to, dist, pairid, worm_type.x, worm_type.y) %>% 
-  distinct() %>% 
-  filter(worm_type.x == 'mf' & worm_type.y == 'mf')
-#get mf only vertices
-igdf$vertices <- igdf$vertices %>% filter(knownbrood != 'unknown')
-#create new igraph
-pruned_g <- graph_from_data_frame(igdf$edges,
-                                  directed = F,
-                                  vertices = igdf$vertices)
-
-colgroups <- as.factor(igdf$vertices$knownbrood)
-#create palette with as many colours as factor levels (samples)
-n<-nlevels(colgroups)
-pal <- brewer.pal(n,"Accent")
-#make factor (sample): colour mapping
-vertex.col <- pal[colgroups]
-#plot network
-{plot(pruned_g, vertex.label.cex = .7,  vertex.size=30, vertex.color=vertex.col) 
-legend("topleft",bty = "n",
-       legend=levels(colgroups),
-       fill=pal, border=NA)}
+```{r}
 
 ```
 
-**Figure 7: Undirected graph showing mtDNA groupings, with mitochondrial haplotypes labelled on vertices, which are coloured by the known brood**
-
-In iGraph it is a faff to directly reconstruct the haplotype network, so I've left it as a schematic, but the brood groupings correspond to Fig 6.
-No we do a quick clustering based on discrete groups
-
-```{r mitoclust}
-mitogrups <-fastgreedy.community(pruned_g)
-plot(mitogrups, pruned_g)
-```
-
-**Figure 7: Undirected graph showing mtDNA groupings, with mitochondrial haplotypes labelled on vertices, which are coloured by the known brood - highlighted by mitochondrial haplotype cluster**
-
-So, now I take the mitochondrial groupings and add them to the original graphs in Figures 4 and 5. Since I am counting each FS group together, I collapse the FS groups into single vertices, and plot mtDNA haplotype sharing as edges.
 
 
 
-```{r mitowrangle, echo = FALSE}
-#add mitochondrial group as attribute
-V(pruned_g)$mitogroup <- membership(mitogrups)
-mitoigdf <- igraph::as_data_frame(pruned_g, "both")
-#now let's extract the vertices and add them to the individuals in map
-mitometa <- mitoigdf$vertices %>% left_join(., map, by =c("name" = "hap")) %>% select(sample_id, name, mitogroup) %>% left_join(., metadata, by = c('sample_id' = "sample_id"))
-
-#simple clustering of sibling network based on FS connectivity
-grups<-fastgreedy.community(net)
-#add membership as vertex attribute and make dataframe of sample id and cluster membership
-V(net)$community <- membership(grups)
-mem <- as.data.frame(cbind(as_ids(V(net)),V(net)$community))
-colnames(mem) <- c("sample_id", "fsibgroup")
-
-#create map of f-sib group membership
-mem <- mem %>% left_join(mitometa, by = c("sample_id" = "sample_id")) %>% select(sample_id, fsibgroup, newsampleid)
-
-rel <- rel %>% mutate(mitosib = ifelse(mitogroup.x == mitogroup.y, 'mitosib', 'mitononsib'))
-
-#now we want to identify mitochondrial links between fullsib clusters
-#join the membership dataframe to edges and select new df with group ids and h-sib as edges
 
 
-edgesud<-rel %>% select(sample_id.x, sample_id.y, relationship, mitosib) 
-
-mitosibedge <- edgesud %>% 
-  left_join(., mem, by = c("sample_id.x" = "sample_id")) %>% 
-  left_join(., mem, by = c('sample_id.y' = 'sample_id')) %>% 
-  select(., fsibgroup.x, fsibgroup.y, mitosib) %>% 
-  filter(., mitosib == 'mitosib') %>% 
-  filter(fsibgroup.x != fsibgroup.y)
-
-#create edges from membership dataframe
-mitosibvertex <- mem %>% 
-  select(fsibgroup, newsampleid) %>% distinct()
-
-#generate groups of samples for colouring
-colgroups <- as.factor(mitosibvertex$newsampleid)
-#create palette with as many colours as factor levels (samples)
-n<-nlevels(colgroups)
-pal <- brewer.pal(n,"Accent")
-#make factor (sample): colour mapping
-vertex.col <- pal[colgroups]
-
-#create graph object, fill by palette we created above, with corresponding legend
-msibgraph  <- graph_from_data_frame(mitosibedge, mitosibvertex, directed = F)
-{plot(msibgraph, vertex.color=vertex.col,)
-legend("topleft",bty = "n",
-       legend=levels(colgroups),
-       fill=pal, border=NA)}
 
 
-mitosibedge
 
 
-#convert this back to a dataframe for counting GTs
-mitodf <- igraph::as_data_frame(msibgraph, "both")
-#calculate unique genotypes-
-#This is the number of vertices (unique adult genotypes)*2, minus the number of mitochondrial links
-```
 
-**Figure 8: Undirected graph showing full-sibling groups connected by mitochondrial haplotypes**
 
-This plot shows us the full-sibling groups (collapsed into single vertices for readability), with shared mitochondrial haplotypes indicated by the edges.
 
-So we can see that we have a shared mitochondrial haplotype between the two FS groups from *61G* - indicating that the individuals from that group share a mother but have different fathers. 
 
-Now, I calculate the number of unique adult GTs to be:
 
-2 GTs for each FS group, minus each mitochondrial haplotype that is shared between that group:
 
-I just count the number of vertices (FS groups) in the final graph, multiply them by two (because each FS group represents 2 GTs - one for sire and one for dam), and then subtract 1 for each edge (because it represents one less parent)
 
-```{r finalcount}
-count(mitodf$vertices)*2 - count(mitodf$edges)/2
-```
 
-So, in this sample set, I have found 7 unique adult genotypes, 3 of which are female, and 3 of which are male (because 61G is one female, and two males, and 2 each for III and 63C)
 
 
 
