@@ -1,15 +1,16 @@
 ################
 #load all our shit
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 #mitochondrial genome fasta of all samples
-input <- c('~/Projects/DNDI/Data/mitochondrial/unamplified_amplified_mf_and_males/fasta/unamplified_amplified_mf.fas')
+input <- c('../data/unamplified_amplified_mf.fas')
 #ibsrelate output
-testpath0 = '/Users/tristanpwdennis/Software/onchotoolbox/data/ibs.model0.results.ibspair'
+testpath0 = '../data/ibs.model0.results.ibspair'
 #source file with ibs functions
-source("~/Projects/onchogenome/ibsfunctions.R")
+source("ibsfunctions.R")
 #source file that generates metadata
-source("~/Projects/onchogenome/scripts/metadata.R")
+source("metadata.R")
 ###
-source("~/Projects/onchogenome/scripts/ibslib.R")
+source("ibslib.R")
 
 ###############################################################################################################################
 #IBSMaster.R
@@ -26,7 +27,7 @@ source("~/Projects/onchogenome/scripts/ibslib.R")
 ###############################################################################################################################
 
 #################
-#Build metadata
+#Build metadata (getseqandsamp is from metadata.R)
 metadata <-getseqandsamp()
 
 #################
@@ -77,7 +78,7 @@ palstuff <- make_ig_color_pals_from_samples(out[[2]], "Set1")
 #colour edges by inferred relationship
 E(sibnet)$color <- as.factor(E(sibnet)$relationship)
 #plot network
-{plot(sibnet, vertex.label.cex = .7,  vertex.size=30, vertex.color=palstuff[[3]]) 
+{plot(sibnet, vertex.label.cex = .7,  vertex.size=30, vertex.color=palstuff[[3]], vertex.label=NA) 
   legend("topleft",bty = "n",
          legend=levels(palstuff[[2]]),
          fill=palstuff[[1]], border=NA)}
@@ -92,7 +93,7 @@ out[[1]] <- out[[1]] %>% filter(., relationship == 'f-sib')
 sibnet <- graph_from_data_frame(out[[1]], out[[2]], directed = FALSE)
 
 ########plot tidier network -  palette is retained
-{plot(sibnet, vertex.label.cex = .7,  vertex.size=30, vertex.color=palstuff[[3]]) 
+{plot(sibnet, vertex.label.cex = .7,  vertex.size=30, vertex.color=palstuff[[3]],vertex.label=NA) 
   legend("topleft",bty = "n",
          legend=levels(palstuff[[2]]),
          fill=palstuff[[1]], border=NA)}

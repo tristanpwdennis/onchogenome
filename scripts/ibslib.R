@@ -106,17 +106,25 @@ make_ig_color_pals_from_samples <- function(nodeframe, palette) {
 ###function for creating haplotype network object using pegas
 #I have not asked PEGAS to render it as the plotting options are
 #abhorrent to me
-makehaplotypenet <- function(d) {
-  d <- read.dna(input, format = 'fasta')
+makehaplotypenet <- function(dnafile) {
+  d <- read.dna(dnafile, format = 'fasta')
   h <- pegas::haplotype(d)
   (hnet <- pegas::haploNet(h))
   return(hnet)
 }
 
 ###########################
+#function for extracting  haplotypes from dnabin object (pegas)
+gethaps <- function(dnafile) {
+  d <- read.dna(dnafile, format = 'fasta')
+  h <- pegas::haplotype(d)
+  return(h)
+}
+
+###########################
 #function for extracting individual haplotype membership from haplotype object (pegas)
-getindhap <- function(h){
-  d <- read.dna(input, format = 'fasta')
+getindhap <- function(dnafile){
+  d <- read.dna(dnafile, format = 'fasta')
   h <- pegas::haplotype(d)
   ind.hap<-with(
     stack(setNames(attr(h, "index"), rownames(h))),
@@ -126,13 +134,15 @@ getindhap <- function(h){
 
 ###########################
 #function for get hamming distance from fasta alignment
-getdistmatrix <- function(d){
-  d <- read.dna(input, format = 'fasta')
+getdistmatrix <- function(dnafile){
+  d <- read.dna(dnafile, format = 'fasta')
   h <- pegas::haplotype(d)
   distmatrix <- dist.hamming(h)
   distmatrix <- as.matrix(distmatrix)
   return(distmatrix)
 }     
+
+
 
 ###########################
 ##convert haplotype network to igraph, and filter out ungrouped haplotypes
@@ -149,7 +159,7 @@ mito_to_haplo_igraph <- function(metadata, dnafile, haplonet) {
     drop_na() %>% 
     distinct()
   #derive distance matrix from haplotype object
-  distmatrix <- getdistmatrix(input)
+  distmatrix <- getdistmatrix(dnafile)
   #longform distance matrix for pairs in BOTH DIRECTIONS (important you get both so that the igraph can be found)
   #turn matrix into longform pairs
   searchdf<-
@@ -179,14 +189,13 @@ mito_to_haplo_igraph <- function(metadata, dnafile, haplonet) {
   return(igdf)
 }
 
-
-makemitomap <- function(mitonet, mitogrups, haps) {
+makemitomap <- function(mitonet, mitogrups, indhaps) {
   ##########################
   #Create map of sample:haplotype for mitochondria
   #add mitochondrial group as as a vertex attribute
   V(mitonet)$mitogroup <- membership(mitogrups)
   mitoigdf <- igraph::as_data_frame(mitonet, "both")
-  map <- as.data.frame(getindhap(h)) %>% filter(Freq > 0)
+  map <- as.data.frame(indhaps) %>% filter(Freq > 0)
   mitomap<-mitoigdf$vertices %>%
     left_join(., map, by = c("name" = "hap")) %>% 
     select(pop, name, mitogroup) %>% 
