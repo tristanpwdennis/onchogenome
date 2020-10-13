@@ -38,6 +38,8 @@ ibsrelateoutput <-  do_derived_stats(read_ibspair_model0(testpath0))
 #Do some wrangling on the relatedness data:
 #for each pairwise comparison, calculate whether it is "within" or "between" brood, patient, etc
 rel <- relmatrixwrangle(ibsrelateoutput, metadata)
+rel <- rel %>% filter(typecomp == 'mf_mf')
+
 
 #################
 #There's a lot of noisy samples here, so I've removed comparisons 
@@ -53,16 +55,42 @@ filter(rel, fracsites > 0.1) %>%
 #the following functions apply a filter of 0.5 (but mostly the same results up to 0.8)
 #################
 #Plot R1/R0
-plotr1r0(rel)
+r1r0 <- plotr1r0(rel)
 
 #################
 #Plot R1/R0
-plotr1king(rel)
+r1king <- plotr1king(rel)
 
 #################
 #Based on these plots, define thresholds for different values of relatedness
 #this groups individuals based on values of R0, R1 and KING
 rel <- definetherelationship(rel)
+
+######################
+#plot relationships with points coloured by inference
+
+plotinferredrel(rel)
+
+######################
+#create r0/r1 and r1/king plot
+
+# extract the legend from one of the plots
+legend <- get_legend(
+  # create some space to the left of the legend
+  r1r0 + theme(legend.box.margin = margin(0, 0, 0, 12)) +
+    theme(legend.position = "bottom")
+)
+
+prow <- plot_grid(
+  r1r0 + theme(legend.position="none"),
+  r1king + theme(legend.position="none"),
+  align = 'vh',
+  labels = c("A", "B"),
+  hjust = -1,
+  nrow = 1
+)
+
+plot_grid(prow, legend, ncol = 1, rel_heights = c(1, .1))
 
 #################
 #create the dataframe that will be used to plot the sib network in iGraph
@@ -191,6 +219,12 @@ count(mitodf$vertices) - count(mitodf$edges)
 
 
 
-
+metadata %>% 
+  filter(short_plate_name == 'WS_08_19_MF') %>% 
+  mutate(coverage = (number.of.mapped.reads*75) / 97000000) %>% 
+  ggplot(aes(y=coverage)) +
+  theme_half_open(12) + 
+  geom_boxplot() +
+  geom_jitter()
 
 

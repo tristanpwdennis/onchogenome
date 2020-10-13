@@ -4,6 +4,7 @@ library(knitr)
 library(igraph)
 library(RColorBrewer)
 library(tidyverse)
+library(tinytex)
 
 ###############################################
 #Function relmatrixwrangle
@@ -20,15 +21,17 @@ ibsrelateoutput <- left_join(ibsrelateoutput, metadata, by = c('ind1' = 'sample_
 ibsrelateoutput$typecomp <- paste0(ibsrelateoutput$worm_type.x, "_",ibsrelateoutput$worm_type.y)
 #here, I create variables specifying whether members of a pair
 ibsrelateoutput <- ibsrelateoutput %>% 
-  mutate(degree_bro = ifelse(newsampleid.x == newsampleid.y, 'withinbrood', 'betweenbrood')) %>% 
-  mutate(degree_pat = ifelse(patient_ID.x == patient_ID.y, 'within_patient', 'between_patient')) 
-#filter out non-mf comparisons for now
-ibsrelateoutput <- ibsrelateoutput %>% 
-  filter(., typecomp == 'mf_mf')
+  mutate(degree_bro = case_when(
+    parent_id.x == parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'withinbrood',
+    parent_id.x != parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'withinbrood',
+    parent_id.x == 'unknown' | parent_id.y == 'unknown' ~ 'unknown',
+    TRUE ~ NA_character_))
 #get the fraction of the total GL's involved in the comparison
 ibsrelateoutput$fracsites <- ibsrelateoutput$nSites / 884673
 return(ibsrelateoutput)
 }
+
+
 
 
 ###########################
@@ -39,7 +42,10 @@ plotr1r0 <- function(rel) {
   filter(rel, fracsites > 0.5) %>% 
     ggplot(., aes(x=R1, y=R0, colour = degree_bro)) +
     geom_point() +
-    theme_minimal(base_size = 22)
+    theme_half_open(12) +
+    theme(axis.text=element_text(size=12)) +
+    theme(plot.margin = margin(6, 0, 6, 0)) +
+    scale_colour_discrete(name  ="Known Degree", labels=c("Between Brood", "Within Brood"))
 }
 
 ###########################
@@ -49,7 +55,10 @@ plotr1king <- function(rel) {
   filter(rel, fracsites > 0.5) %>% 
     ggplot(., aes(x=R1, y=Kin, colour = degree_bro)) +
     geom_point() +
-    theme_minimal(base_size = 22)
+    theme_half_open(12) + 
+    theme(axis.text=element_text(size=12)) +
+    theme(plot.margin = margin(6, 0, 6, 0)) +
+    scale_colour_discrete(name  ="Known Degree", labels=c("Different Brood", "Same Brood"))
 }
 
 ###########################
@@ -67,11 +76,12 @@ return(rel)
 ###########################
 #function for plotting r1 and and R0 with inferred rel coloured in
 plotinferredrel <- function(rel) {
-  rel %>% filter(., fracsites > 0.8) %>% 
+  rel %>% filter(., fracsites > 0.5) %>% 
     ggplot(aes(x=R1, y = R0, colour = relationship)) +
-    geom_point()
+    geom_point() +
+    theme_half_open(12) + 
+    scale_colour_discrete(name  ="Inferred relationship", labels=c("Full-Sib", "Half-Sib", "Unrelated"))
 }
-
 
 ###########################
 #function for creating initial igdfs
