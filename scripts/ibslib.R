@@ -5,6 +5,7 @@ library(igraph)
 library(RColorBrewer)
 library(tidyverse)
 library(tinytex)
+library(cowplot)
 
 ###############################################
 #Function relmatrixwrangle
