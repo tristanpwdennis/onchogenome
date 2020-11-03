@@ -1,8 +1,8 @@
 ---
 title: "Estimating Unique Adult Genotypes with Low-Coverage Whole-Genome-Sequencing"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 editor_options:
   chunk_output_type: console
 ---
@@ -42,9 +42,7 @@ The identification of siblings is critical because if the adult female worms (li
 
 Inferring the number of adults that have contributed to the microfilaria pool, and then using the number of unique adult genotypes, to infer the likely number of adults that infect a host. This can then be used to calculate the certainty with which one predicts treatment success or failure.
 
-Here, I present an initial method for estimating sibling relationships and number of breeders from WGS data derived from O. volvulus microfilariae. The reconstruction of full-sibling and half-sibling relationships allows one to identify potential treatment failure. The estimation of the number of breeders allows you to then model potential undersampling of mf with respect to the total adult worm burden.
-
-
+Here, I present an initial method for estimating sibling relationships and number of breeders from WGS data derived from *O. volvulus* microfilariae. The reconstruction of full-sibling and half-sibling relationships allows one to identify potential treatment failure. The estimation of the number of breeders allows you to then model potential undersampling of mf with respect to the total adult worm burden.
 
 ```{r buildmetadata,include = FALSE, echo = FALSE}
 #build metadata
