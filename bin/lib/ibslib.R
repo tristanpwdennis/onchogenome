@@ -24,7 +24,7 @@ ibsrelateoutput$typecomp <- paste0(ibsrelateoutput$worm_type.x, "_",ibsrelateout
 ibsrelateoutput <- ibsrelateoutput %>% 
   mutate(degree_bro = case_when(
     parent_id.x == parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'withinbrood',
-    parent_id.x != parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'withinbrood',
+    parent_id.x != parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'betweenbrood',
     parent_id.x == 'unknown' | parent_id.y == 'unknown' ~ 'unknown',
     TRUE ~ NA_character_))
 #get the fraction of the total GL's involved in the comparison
@@ -33,14 +33,12 @@ return(ibsrelateoutput)
 }
 
 
-
-
 ###########################
 #function for plotting r1 and r0
 
-plotr1r0 <- function(rel) {
+plotr1r0 <- function(rel, frac) {
   #plot R1/R0
-  filter(rel, fracsites > 0.5) %>% 
+  filter(rel, fracsites > frac) %>% 
     ggplot(., aes(x=R1, y=R0, colour = degree_bro)) +
     geom_point() +
     theme_half_open(12) +
@@ -51,9 +49,9 @@ plotr1r0 <- function(rel) {
 
 ###########################
 #function for plotting r1 and rKING robust kinship
-plotr1king <- function(rel) {
+plotr1king <- function(rel, frac) {
   #plot R1/King ROBUST KINSHIP
-  filter(rel, fracsites > 0.5) %>% 
+  filter(rel, fracsites > frac) %>% 
     ggplot(., aes(x=R1, y=Kin, colour = degree_bro)) +
     geom_point() +
     theme_half_open(12) + 
@@ -67,6 +65,7 @@ plotr1king <- function(rel) {
 definetherelationship <- function(rel) {
 rel <- rel %>% mutate(.,
           relationship = case_when(
+          R0 > 0.2  ~ 'unknown',
           R0 < 0.2 & R1 < 0.5 ~ 'h-sib',
           R1 > 0.5  ~ 'f-sib',
           TRUE ~ NA_character_)
@@ -79,8 +78,9 @@ return(rel)
 plotinferredrel <- function(rel) {
   rel %>% filter(., fracsites > 0.5) %>% 
     ggplot(aes(x=R1, y = R0, colour = relationship)) +
-    geom_point() +
+    geom_point(size =2) +
     theme_half_open(12) + 
+    theme(legend.position = c(0.6, 0.5), legend.title=element_text(size=20), legend.text=element_text(size=15)) +
     scale_colour_discrete(name  ="Inferred relationship", labels=c("Full-Sib", "Half-Sib", "Unrelated"))
 }
 
@@ -88,7 +88,7 @@ plotinferredrel <- function(rel) {
 #function for creating initial igdfs
 makeinitialigdfs <- function(rel, metadata) {
   edges <- rel %>% 
-    filter(fracsites > 0.7) %>% 
+    filter(fracsites > 0.8) %>% 
     select(sample_id.x, sample_id.y, relationship) %>% 
     drop_na()
   #create node (igraph calls these vertices) attrribute dataframe (selecting metadata rows that are in the relatedness frame)

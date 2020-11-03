@@ -55,11 +55,11 @@ filter(rel, fracsites > 0.1) %>%
 #the following functions apply a filter of 0.5 (but mostly the same results up to 0.8)
 #################
 #Plot R1/R0
-r1r0 <- plotr1r0(rel)
+r1r0 <- plotr1r0(rel, 0.5)
 
 #################
 #Plot R1/R0
-r1king <- plotr1king(rel)
+r1king <- plotr1king(rel, 0.5)
 
 #################
 #Based on these plots, define thresholds for different values of relatedness
@@ -163,6 +163,9 @@ plot(mitogrups, mitonet)
 #plot fullsib clustering
 plot(fsibgrups, sibnet)
 
+#########################
+#get individual haplotypes
+h <- getindhap(dnafile = input)
 
 ##########################
 #make mito map
@@ -216,8 +219,6 @@ count(mitodf$vertices)*2 - count(mitodf$edges)
 
 #Number of unique female genotypes - one for every f-sib cluster minus one for every shared mitochondrial haplotype
 count(mitodf$vertices) - count(mitodf$edges)
-
-
 
 metadata %>% 
   filter(short_plate_name == 'WS_08_19_MF') %>% 

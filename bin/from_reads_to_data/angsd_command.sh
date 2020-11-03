@@ -1,0 +1,1 @@
+./angsd/angsd -gl 2 -snp_pval 1e-6 -minInd 10 -doHWE 1  -dosnpstat 1 -minQ 20 -minmaf 0.05 -doMaf 1 -doGlf 1 -doDepth 1 -doCounts 1 -out angsd-reports/foribs/ibsonly -bam  mfonlylist -nThreads 20 -doMajorMinor 1
