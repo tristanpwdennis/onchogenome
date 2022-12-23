@@ -170,6 +170,7 @@ However, this throws a spanner in the works. We cannot infer the number of total
 
 ```{r makehaplonet}
 hnet <- makehaplotypenet(fasta)
+plot(hnet)
 h <- getindhap(fasta)
 ```
 
