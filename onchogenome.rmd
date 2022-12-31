@@ -160,7 +160,9 @@ out[[1]] <- out[[1]] %>% filter(., relationship == 'f-sib')
 sibnet <- graph_from_data_frame(out[[1]], out[[2]], directed = FALSE)
 ```
 ```{r plottidyigraph}
-{plot(sibnet, vertex.label.cex = .7,  vertex.size=35, vertex.color=palstuff[[3]],vertex.label=NA)}
+{plot(sibnet, vertex.label.cex = .7,  vertex.size=35, vertex.color=palstuff[[3]],vertex.label=NA)
+  legend(-2, 1, legend=c("A", "B", "C"), fill=c("#1b9e77", "#d95f02", "#7570b3"), bty='n',cex=1)
+  }
 ```
 
 **Figure 5: Undirected graph indicating FS relationships (edge colour-orange) amongst 10 intrauterine microfilaria (node label) isolated from three different adult females (node colour).**
@@ -169,9 +171,26 @@ This is tidier. We can see clearly FSib clusters coloured by our prior knowledge
 However, this throws a spanner in the works. We cannot infer the number of total parents from FS clustering alone - we need to know which individuals may share a mother or a father. As we saw above, our HS assignment is all over the place. I can work out half-siblinghood, however, by looking at mitochondrial genotype sharing between individuals. As mitochondria are inherited maternally, finding out mitochondrial genotype in our samples will tell us which individuals share a mother. By process of elimination, we can then infer the number of unique male and female genotypes from our offspring. It also happens that we get great coverage across the mtDNA in each individual, so this makes mtDNA genotyping quite straightforward in our sample set.
 
 ```{r makehaplonet}
-hnet <- makehaplotypenet(fasta)
-plot(hnet)
-h <- getindhap(fasta)
+iumf_fas <- read.dna(fasta, format='fasta') 
+#match up metadata to fasta names
+netmetadata = metadata[match(rownames(iumf_fas), metadata$sample_id), ]
+#change fasta names to form id
+names(iumf_fas) <- netmetadata$newsampleid
+
+#make hap object from fasta
+onchohaps <- haplotype(iumf_fas)
+
+hnet <- haploNet(onchohaps)
+
+#make table of now many individuals from each form belong to each cluster
+ind.hap<-with(
+  stack(setNames(attr(onchohaps, "index"), rownames(onchohaps))),
+  table(hap=ind, individuals=names(iumf_fas)[values]))
+
+
+{setHaploNetOptions(pie.colors.function=c("#1B9E77","#D95F02","#7570B3"))
+plot(hnet, attr(hnet, "freq"), fast = TRUE, legend = c(-700, 30), show.mutation = 2, scale.ratio = 1, cex = 0.8, labels=FALSE, threshold = 0,  pie=ind.hap)
+legend(-30, 6, legend=c("A", "B", "C"), fill=c("#1B9E77","#D95F02","#7570B3"), bty='n', cex=1)}
 ```
 
 ![**Figure 5: Medium spanning network of O.volvulus microfilarial mitochondrial haplotypes from 3 broods of intrauterine mf**](figures/unamplified_amplified_mf_msn.png)
@@ -186,7 +205,7 @@ Now, I extract the network into an iGraph, so I can parse out information on whi
 
 
 ```{r getigraphfromhnet, include = FALSE}
-ig <- mito_to_haplo_igraph(metadata, fasta, hnet)
+ig <- mito_to_haplo_igraph(metadata, fasta, onchonet)
 #create the mitochondrial igraph ibject
 mitonet <- graph_from_data_frame(ig$edges, ig$vertices, directed = FALSE)
 #generate vertext colours for the mitochondrial igraph

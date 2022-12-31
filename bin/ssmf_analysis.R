@@ -7,7 +7,7 @@ ssmf_fas <- read.dna("~/Library/Mobile Documents/com~apple~CloudDocs/Projects/on
 ssmf_meta <- fread("~/Library/Mobile Documents/com~apple~CloudDocs/Projects/onchocerca/onchogenome/metadata/seq_output/oncho_ssmf_mitodata.csv")
 ssmf_res <- fread("~/Library/Mobile Documents/com~apple~CloudDocs/Projects/onchocerca/onchogenome/metadata/seq_output/oncho_ssmf_mitodata.csv")
 
-
+median(ssmf_meta$cov_over_mito)
 #match up metadata to fasta names
 netmetadata = ssmf_meta[match(rownames(ssmf_fas), ssmf_meta$mitoid), ]
 
@@ -35,6 +35,3 @@ plot(onchonet,
      cex = 0.3,
      legend = c(-40, 15))
 legend(-20,15, fill=c("#66A61E","#E6AB02"), bty='n', cex=1, legend = c("Left", "Right"))
-
-
-?haploNet
