@@ -15,6 +15,7 @@ library(cowplot)
 #It thencreates columns specifying whether a comparison is within brood 
 #and then outputs the finished df (with only mfmf comparisons) for plotting and analysis
 relmatrixwrangle <- function(ibsrelateoutput, metadata) {
+  
 #add metadata to each 'side' of the paired data on key = sample number (bamlist order)
 ibsrelateoutput <- left_join(ibsrelateoutput, metadata, by = c('ind1' = 'sample_num')) %>% 
   left_join(., metadata, by = c('ind2' = 'sample_num')) 
@@ -23,12 +24,13 @@ ibsrelateoutput$typecomp <- paste0(ibsrelateoutput$worm_type.x, "_",ibsrelateout
 #here, I create variables specifying whether members of a pair
 ibsrelateoutput <- ibsrelateoutput %>% 
   mutate(degree_bro = case_when(
-    parent_id.x == parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'withinbrood',
-    parent_id.x != parent_id.y & parent_id.x != 'unknown' & parent_id.y != 'unknown' ~ 'betweenbrood',
-    parent_id.x == 'unknown' | parent_id.y == 'unknown' ~ 'unknown',
+    maternal_id.x == maternal_id.y & maternal_id.x != 'unknown' & maternal_id.y != 'unknown' ~ 'withinbrood',
+    maternal_id.x != maternal_id.y & maternal_id.x != 'unknown' & maternal_id.y != 'unknown' ~ 'betweenbrood',
+    maternal_id.x == 'unknown' | maternal_id.y == 'unknown' ~ 'unknown',
     TRUE ~ NA_character_))
 #get the fraction of the total GL's involved in the comparison
 ibsrelateoutput$fracsites <- ibsrelateoutput$nSites / 884673
+
 return(ibsrelateoutput)
 }
 
@@ -105,9 +107,9 @@ makeinitialigdfs <- function(rel, metadata) {
 #function for creating colour palettes from node sample lists
 make_ig_color_pals_from_samples <- function(nodeframe, palette) {
   #define group colours
-  colgroups <- as.factor(nodeframe[,2])
+  colgroups <- as.factor(nodeframe$newsampleid)
   n<-nlevels(colgroups)
-  pal <- brewer.pal(n,palette)
+  pal <- brewer.pal(n,"Dark2")
   #make factor (sample): colour mapping
   vertex.col <- pal[colgroups]
   return(list(pal, colgroups, vertex.col))

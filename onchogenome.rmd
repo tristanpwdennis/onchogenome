@@ -16,6 +16,7 @@ library(RColorBrewer)
 library(tidyverse)
 library(cowplot)
 library(tinytex)
+library(data.table)
 ```
 
 ```{r, include = FALSE}
@@ -46,11 +47,7 @@ Here, I present an initial method for estimating sibling relationships and numbe
 
 ```{r buildmetadata,include = FALSE, echo = FALSE}
 #build metadata
-metadata <- getseqandsamp()
-#do some subs to get simpler sample names
-metadata$newsampleid <- gsub('711-004-6-1_g', 'A', metadata$newsampleid)
-metadata$newsampleid <- gsub('711-004-6-3_c', 'B', metadata$newsampleid)
-metadata$newsampleid <- gsub('010-243-2-1_2_3_III', 'C', metadata$newsampleid)
+metadata <- fread('metadata/iumf_metadata.csv')
 ```
 
 I calculate the IBS statistics from the genotype distribution, calculated by IBSRelate for all pairs of the samples.
@@ -133,10 +130,12 @@ Now, I can plot these relationships using the iGraph library so we can get a bet
 So, here, I pass the relatedness dataframe, and the metadata, and use it to generate edges (links/branches) and vertices (nodes) that can be used as an input for iGraph, gtenerating a colour palette based on the female from which the mf was dissected.
 
 ```{r makeigraph}
+
 out <- makeinitialigdfs(rel, metadata)
 sibnet <- graph_from_data_frame(out[[1]], out[[2]], directed = FALSE)
 palstuff <- make_ig_color_pals_from_samples(out[[2]], "Dark2")
 E(sibnet)$color <- as.factor(E(sibnet)$relationship)
+
 ```
 
 Now, I plot:
@@ -291,6 +290,49 @@ The number of unique mothers: (no. vertices in the mitochondrial graph):
 ```{r uniquemothers, echo= FALSE}
 count(mitodf$vertices) - count(mitodf$edges)
 ```
+
+## Part 2 - inferring number of maternal worms contributing to a pool of skin-snip mf from a single patient
+
+```{r mitochondrialnetwork}
+ssmf_fas <- read.dna('data/oncho_ssmf_mito.fasta', format="fasta")
+
+
+
+ssmf_meta <- fread("~/Library/Mobile Documents/com~apple~CloudDocs/Projects/onchocerca/onchogenome/metadata/seq_output/oncho_ssmf_mitodata.csv")
+ssmf_res <-fread('~/Library/Mobile Documents/com~apple~CloudDocs/Projects/onchocerca/onchogenome/data/ssmf.res')
+
+#match up metadata to fasta names
+netmetadata = ssmf_meta[match(rownames(ssmf_fas), ssmf_meta$mitoid), ]
+
+#change fasta names to form id
+names(ssmf_fas) <- netmetadata$loc
+
+#make hap object from fasta
+onchohaps <- pegas::haplotype(ssmf_fas)
+
+#make table of now many individuals from each form belong to each cluster
+ind.hap<-with(
+  stack(setNames(attr(onchohaps, "index"), rownames(onchohaps))),
+  table(hap=ind, individuals=names(ssmf_fas)[values]))
+
+pal1 = RColorBrewer::brewer.pal("Dark2", n=6)
+
+onchonet <- pegas::haploNet(onchohaps)
+setHaploNetOptions(pie.colors.function=c("#66A61E","#E6AB02"))
+plot(onchonet, 
+     size = sqrt(attr(onchonet, 'freq')), 
+     fast = FALSE, 
+     show.mutation = 2, 
+     labels= FALSE, 
+     pie=ind.hap,
+     cex = 0.3,
+     legend = c(-40, 15))
+legend(-20,15, fill=c("#66A61E","#E6AB02"), bty='n', cex=1, legend = c("Left", "Right"))
+
+```
+
+
+
 
 [1]: https://link.springer.com/article/10.1186/s13071-019-3687-1
 [2]: https://onlinelibrary.wiley.com/doi/full/10.1111/mec.14954
