@@ -94,7 +94,7 @@ makeinitialigdfs <- function(rel, metadata) {
     select(sample_id.x, sample_id.y, relationship) %>% 
     drop_na()
   #create node (igraph calls these vertices) attrribute dataframe (selecting metadata rows that are in the relatedness frame)
-  nodes <- metadata %>% select(., sample_id, newsampleid) %>%
+  nodes <- metadata %>% select(., sample_id) %>%
     filter(sample_id %in% edges$sample_id.x | sample_id %in% edges$sample_id.y)
     
   edgesnodes <- list(edges, nodes)
@@ -107,7 +107,7 @@ makeinitialigdfs <- function(rel, metadata) {
 #function for creating colour palettes from node sample lists
 make_ig_color_pals_from_samples <- function(nodeframe, palette) {
   #define group colours
-  colgroups <- as.factor(nodeframe$newsampleid)
+  colgroups <- as.factor(nodeframe$sample_id)
   n<-nlevels(colgroups)
   pal <- brewer.pal(n,"Dark2")
   #make factor (sample): colour mapping
@@ -166,8 +166,8 @@ mito_to_haplo_igraph <- function(metadata, dnafile, haplonet) {
   membship <- as.data.frame(ih) %>% filter(Freq == 1)
   #create our map that contains haplotype information and sample information - to get per-sample haplotype info
   map <- metadata %>% 
-    mutate(., knownbrood = case_when(worm_type == 'mf' ~ newsampleid,TRUE ~ 'unknown')) %>% 
-    select(., sample_id, newsampleid, knownbrood, worm_type) %>% 
+    mutate(., knownbrood = case_when(worm_type == 'mf' ~ sample_id,TRUE ~ 'unknown')) %>% 
+    select(., sample_id, knownbrood, worm_type) %>% 
     left_join(., membship, by = c('sample_id' = 'pop')) %>% 
     drop_na() %>% 
     distinct()
@@ -228,8 +228,8 @@ makesibmap <- function(sibnet, mitomap, fsibgrups) {
   #extract vertices and their community characteristics
   fsibmap <- mem$vertices %>% 
     left_join(mitomap, by = c("name" = "sample_id")) %>% 
-    select(name, community, newsampleid)
-  colnames(fsibmap) <- c("sample_id", "fsibgroup", "newsampleid")
+    select(name, community)
+  colnames(fsibmap) <- c("sample_id", "fsibgroup")
   return(fsibmap)
 }
 
